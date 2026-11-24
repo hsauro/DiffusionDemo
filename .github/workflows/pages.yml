@@ -1,0 +1,72 @@
+name: GitHub Pages
+
+# Test, build every app with trunk, and publish to
+# https://<owner>.github.io/DiffusionDemo/ on each push to main.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deployment at a time; let an in-progress one finish.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+env:
+  # Each app is served at /<repo>/<app>/.
+  APPS: diffusion2d
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install stable Rust with the wasm target
+        run: |
+          rustup update stable
+          rustup default stable
+          rustup set profile minimal
+          rustup target add wasm32-unknown-unknown
+
+      - name: Cache cargo registry and target folder
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install trunk
+        run: |
+          wget -qO- https://github.com/trunk-rs/trunk/releases/latest/download/trunk-x86_64-unknown-linux-gnu.tar.gz | tar -xzf- -C /usr/local/bin
+          trunk --version
+
+      - name: Physics tests
+        run: cargo test -p rd-core
+
+      - name: Build apps
+        run: |
+          for app in $APPS; do
+            (cd "apps/$app" && trunk build --release \
+              --public-url "/${{ github.event.repository.name }}/$app/" \
+              --dist "../../dist/$app")
+          done
+
+      - name: Add landing page
+        run: cp site/index.html dist/index.html
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

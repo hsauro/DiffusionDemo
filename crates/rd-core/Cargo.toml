@@ -1,0 +1,13 @@
+[package]
+name = "rd-core"
+description = "Simulation core for the reaction-diffusion teaching tools: grid, Laplacian, boundaries, brush, colormaps. No GUI dependency."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish = false
+
+[dependencies]
+
+[lints]
+workspace = true
